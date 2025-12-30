@@ -8,6 +8,7 @@ import { JuvnaChat } from './JuvnaChat';
 import { JuvnaAgentInbox } from './JuvnaAgentInbox';
 import { JuvnaPipeline } from './JuvnaPipeline';
 import { JuvnaLeads } from './JuvnaLeads';
+import { JuvnaOutreach } from './JuvnaOutreach';
 import { AnimatePresence, motion } from 'framer-motion';
 import '../../styles/juvna-theme.css';
 
@@ -35,6 +36,8 @@ export function JuvnaApp() {
       case 'agent-leads':
       case 'agent-analytics':
         return <JuvnaLeads key="leads" />;
+      case 'agent-outreach':
+        return <JuvnaOutreach key="outreach" />;
       default:
         return <JuvnaLanding key="landing" />;
     }

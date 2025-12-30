@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Send
 } from 'lucide-react';
 
 interface YuvnaHeaderProps {
@@ -71,13 +72,22 @@ export function YuvnaHeader({ showNav = true, currentPage }: YuvnaHeaderProps) {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
-            {/* Agent Portal Link */}
-            <button 
-              onClick={() => setView('agent-inbox')}
-              className="hidden md:block text-[13px] font-medium text-[#7a6a5f] hover:text-[#E07F26] transition-colors"
-            >
-              Agent Portal
-            </button>
+            {/* Agent Portal Links */}
+            <div className="hidden md:flex items-center gap-4">
+              <button 
+                onClick={() => setView('agent-outreach')}
+                className="flex items-center gap-1.5 text-[13px] font-medium text-[#7a6a5f] hover:text-[#E07F26] transition-colors"
+              >
+                <Send className="w-4 h-4" />
+                Outreach
+              </button>
+              <button 
+                onClick={() => setView('agent-inbox')}
+                className="text-[13px] font-medium text-[#7a6a5f] hover:text-[#E07F26] transition-colors"
+              >
+                Agent Portal
+              </button>
+            </div>
 
             {/* User Menu (if logged in) */}
             {currentBuyer && (
@@ -186,6 +196,14 @@ export function YuvnaHeader({ showNav = true, currentPage }: YuvnaHeaderProps) {
               ))}
               
               <div className="h-px bg-[#E8E4E0] my-2" />
+              
+              <button
+                onClick={() => { setView('agent-outreach'); setMobileMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left text-[#7a6a5f] hover:bg-[#F5F3F1] transition-all"
+              >
+                <Send className="w-5 h-5" />
+                Outreach Engine
+              </button>
               
               <button
                 onClick={() => { setView('agent-inbox'); setMobileMenuOpen(false); }}

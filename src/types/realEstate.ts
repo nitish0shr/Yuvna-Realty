@@ -443,6 +443,7 @@ export interface AppView {
     | 'chat'
     // Agent-facing views
     | 'agent-inbox'
+    | 'agent-outreach'
     | 'agent-pipeline'
     | 'agent-leads'
     | 'agent-analytics'

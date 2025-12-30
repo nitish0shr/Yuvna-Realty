@@ -19,7 +19,9 @@ import {
   Users,
   LogOut,
   Send,
-  Zap
+  Zap,
+  ExternalLink,
+  Check
 } from 'lucide-react';
 
 import { YuvnaLogoAgent } from './YuvnaLogo';
@@ -89,6 +91,8 @@ export function JuvnaAgentInbox() {
   const [filterScore, setFilterScore] = useState<LeadScore | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentNav, setCurrentNav] = useState('inbox');
+  const [actionTaken, setActionTaken] = useState<string | null>(null);
+  const [showNotification, setShowNotification] = useState(false);
 
   const filteredBuyers = buyers.filter(buyer => {
     if (filterScore !== 'all' && buyer.leadScore !== filterScore) return false;
@@ -98,6 +102,53 @@ export function JuvnaAgentInbox() {
     const priority: Record<LeadScore, number> = { 'ready-to-call': 0, 'hot': 1, 'warm': 2, 'cold': 3 };
     return priority[a.leadScore] - priority[b.leadScore];
   });
+
+  // Action handlers - these actually do something!
+  const handleCall = (phone?: string) => {
+    if (phone) {
+      window.open(`tel:${phone}`, '_self');
+      showActionNotification(`Calling ${phone}...`);
+    } else {
+      showActionNotification('No phone number available');
+    }
+  };
+
+  const handleEmail = (email: string, name: string) => {
+    const subject = encodeURIComponent(`Follow up - Yuvna Realty Investment Opportunity`);
+    const body = encodeURIComponent(`Hi ${name},\n\nThank you for your interest in Dubai real estate investment.\n\nI wanted to follow up on your inquiry and discuss the best options for your investment goals.\n\nBest regards,\nYuvna Realty Team`);
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
+    showActionNotification(`Opening email to ${email}`);
+  };
+
+  const handleSchedule = (name: string, email: string) => {
+    // Create calendar event URL (Google Calendar)
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + 1);
+    startDate.setHours(10, 0, 0, 0);
+    const endDate = new Date(startDate);
+    endDate.setHours(11, 0, 0, 0);
+    
+    const formatDate = (d: Date) => d.toISOString().replace(/-|:|\.\d+/g, '');
+    
+    const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Call with ${name} - Yuvna Realty`)}&dates=${formatDate(startDate)}/${formatDate(endDate)}&details=${encodeURIComponent(`Property investment consultation call with ${name}\nEmail: ${email}`)}&sf=true`;
+    
+    window.open(calendarUrl, '_blank');
+    showActionNotification(`Opening calendar to schedule with ${name}`);
+  };
+
+  const handleTakeAction = (buyer: BuyerProfile) => {
+    if (buyer.leadScore === 'ready-to-call' && buyer.phone) {
+      handleCall(buyer.phone);
+    } else {
+      handleEmail(buyer.email, buyer.firstName);
+    }
+  };
+
+  const showActionNotification = (message: string) => {
+    setActionTaken(message);
+    setShowNotification(true);
+    setTimeout(() => setShowNotification(false), 3000);
+  };
 
   const navItems = [
     { id: 'inbox', label: 'Inbox', icon: Inbox, badge: 3 },
@@ -109,6 +160,16 @@ export function JuvnaAgentInbox() {
 
   return (
     <div className="min-h-screen bg-[#F9F7F5] flex">
+      {/* Action Notification */}
+      {showNotification && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
+          <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+            <Check className="w-5 h-5" />
+            {actionTaken}
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-[#E8E4E0] flex flex-col">
         <div className="p-6 border-b border-[#E8E4E0]">
@@ -265,14 +326,26 @@ export function JuvnaAgentInbox() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="p-2.5 rounded-lg border border-[#E8E4E0] hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-colors">
-                    <Phone className="w-5 h-5 text-[#3D2D22]" />
+                  <button 
+                    onClick={() => handleCall(selectedBuyer.phone)}
+                    className="p-2.5 rounded-lg border border-[#E8E4E0] hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-colors group"
+                    title="Call"
+                  >
+                    <Phone className="w-5 h-5 text-[#3D2D22] group-hover:text-[#E07F26]" />
                   </button>
-                  <button className="p-2.5 rounded-lg border border-[#E8E4E0] hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-colors">
-                    <Mail className="w-5 h-5 text-[#3D2D22]" />
+                  <button 
+                    onClick={() => handleEmail(selectedBuyer.email, selectedBuyer.firstName)}
+                    className="p-2.5 rounded-lg border border-[#E8E4E0] hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-colors group"
+                    title="Send Email"
+                  >
+                    <Mail className="w-5 h-5 text-[#3D2D22] group-hover:text-[#E07F26]" />
                   </button>
-                  <button className="p-2.5 rounded-lg border border-[#E8E4E0] hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-colors">
-                    <Calendar className="w-5 h-5 text-[#3D2D22]" />
+                  <button 
+                    onClick={() => handleSchedule(selectedBuyer.firstName, selectedBuyer.email)}
+                    className="p-2.5 rounded-lg border border-[#E8E4E0] hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-colors group"
+                    title="Schedule Meeting"
+                  >
+                    <Calendar className="w-5 h-5 text-[#3D2D22] group-hover:text-[#E07F26]" />
                   </button>
                 </div>
               </div>
@@ -330,8 +403,44 @@ export function JuvnaAgentInbox() {
                       ? 'Call within 4 hours - buyer requested contact'
                       : 'Send personalized property comparison for their budget range'}
                   </p>
-                  <button className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors">
-                    Take Action
+                  <button 
+                    onClick={() => handleTakeAction(selectedBuyer)}
+                    className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
+                  >
+                    {selectedBuyer.leadScore === 'ready-to-call' ? (
+                      <><Phone className="w-4 h-4" /> Call Now</>
+                    ) : (
+                      <><Mail className="w-4 h-4" /> Send Email</>
+                    )}
+                    <ExternalLink className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  <button 
+                    onClick={() => handleCall(selectedBuyer.phone)}
+                    className="p-4 rounded-xl border border-[#E8E4E0] hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-all text-center"
+                  >
+                    <Phone className="w-6 h-6 text-[#E07F26] mx-auto mb-2" />
+                    <div className="text-sm font-medium text-[#3D2D22]">Call</div>
+                    <div className="text-xs text-[#7a6a5f]">{selectedBuyer.phone || 'N/A'}</div>
+                  </button>
+                  <button 
+                    onClick={() => handleEmail(selectedBuyer.email, selectedBuyer.firstName)}
+                    className="p-4 rounded-xl border border-[#E8E4E0] hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-all text-center"
+                  >
+                    <Mail className="w-6 h-6 text-[#E07F26] mx-auto mb-2" />
+                    <div className="text-sm font-medium text-[#3D2D22]">Email</div>
+                    <div className="text-xs text-[#7a6a5f]">Send message</div>
+                  </button>
+                  <button 
+                    onClick={() => handleSchedule(selectedBuyer.firstName, selectedBuyer.email)}
+                    className="p-4 rounded-xl border border-[#E8E4E0] hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-all text-center"
+                  >
+                    <Calendar className="w-6 h-6 text-[#E07F26] mx-auto mb-2" />
+                    <div className="text-sm font-medium text-[#3D2D22]">Schedule</div>
+                    <div className="text-xs text-[#7a6a5f]">Book meeting</div>
                   </button>
                 </div>
 
@@ -403,4 +512,3 @@ export function JuvnaAgentInbox() {
     </div>
   );
 }
-

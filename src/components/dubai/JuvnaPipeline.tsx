@@ -19,7 +19,11 @@ import {
   BarChart3,
   LogOut,
   Send,
-  Zap
+  Zap,
+  Mail,
+  GripVertical,
+  Check,
+  ArrowRight
 } from 'lucide-react';
 
 import { YuvnaLogoAgent } from './YuvnaLogo';
@@ -28,6 +32,8 @@ interface MockDeal {
   id: string;
   buyerName: string;
   buyerInitial: string;
+  buyerEmail: string;
+  buyerPhone?: string;
   country: string;
   budget: number;
   stage: DealStage;
@@ -37,12 +43,12 @@ interface MockDeal {
   suggestedAction: string;
 }
 
-const mockDeals: MockDeal[] = [
-  { id: '1', buyerName: 'Ahmed Al-Rashid', buyerInitial: 'A', country: 'UAE', budget: 1500000, stage: 'qualified', daysInStage: 3, dropOffRisk: 'low', persona: 'yield-investor', suggestedAction: 'Schedule property viewing' },
-  { id: '2', buyerName: 'Sarah Thompson', buyerInitial: 'S', country: 'UK', budget: 2500000, stage: 'advisory', daysInStage: 5, dropOffRisk: 'medium', persona: 'visa-driven', suggestedAction: 'Follow up on Golden Visa requirements' },
-  { id: '3', buyerName: 'Raj Patel', buyerInitial: 'R', country: 'India', budget: 800000, stage: 'site-visit', daysInStage: 2, dropOffRisk: 'low', persona: 'capital-investor', suggestedAction: 'Prepare offer package' },
-  { id: '4', buyerName: 'Maria Garcia', buyerInitial: 'M', country: 'Spain', budget: 3000000, stage: 'new', daysInStage: 1, dropOffRisk: 'high', persona: 'lifestyle', suggestedAction: 'Initial outreach call' },
-  { id: '5', buyerName: 'James Wilson', buyerInitial: 'J', country: 'US', budget: 1800000, stage: 'booking', daysInStage: 1, dropOffRisk: 'low', persona: 'yield-investor', suggestedAction: 'Confirm deposit transfer' },
+const initialDeals: MockDeal[] = [
+  { id: '1', buyerName: 'Ahmed Al-Rashid', buyerInitial: 'A', buyerEmail: 'ahmed@email.com', buyerPhone: '+971501234567', country: 'UAE', budget: 1500000, stage: 'qualified', daysInStage: 3, dropOffRisk: 'low', persona: 'yield-investor', suggestedAction: 'Schedule property viewing' },
+  { id: '2', buyerName: 'Sarah Thompson', buyerInitial: 'S', buyerEmail: 'sarah.t@email.com', buyerPhone: '+447891234567', country: 'UK', budget: 2500000, stage: 'advisory', daysInStage: 5, dropOffRisk: 'medium', persona: 'visa-driven', suggestedAction: 'Follow up on Golden Visa requirements' },
+  { id: '3', buyerName: 'Raj Patel', buyerInitial: 'R', buyerEmail: 'raj.patel@email.com', country: 'India', budget: 800000, stage: 'site-visit', daysInStage: 2, dropOffRisk: 'low', persona: 'capital-investor', suggestedAction: 'Prepare offer package' },
+  { id: '4', buyerName: 'Maria Garcia', buyerInitial: 'M', buyerEmail: 'maria.g@email.com', country: 'Spain', budget: 3000000, stage: 'new', daysInStage: 1, dropOffRisk: 'high', persona: 'lifestyle', suggestedAction: 'Initial outreach call' },
+  { id: '5', buyerName: 'James Wilson', buyerInitial: 'J', buyerEmail: 'james.w@email.com', buyerPhone: '+14155551234', country: 'US', budget: 1800000, stage: 'booking', daysInStage: 1, dropOffRisk: 'low', persona: 'yield-investor', suggestedAction: 'Confirm deposit transfer' },
 ];
 
 const stages: { id: DealStage; label: string; color: string }[] = [
@@ -56,8 +62,11 @@ const stages: { id: DealStage; label: string; color: string }[] = [
 
 export function JuvnaPipeline() {
   const { setView } = useRealEstateStore();
-  const [deals] = useState(mockDeals);
+  const [deals, setDeals] = useState(initialDeals);
   const [selectedDeal, setSelectedDeal] = useState<MockDeal | null>(null);
+  const [draggedDeal, setDraggedDeal] = useState<MockDeal | null>(null);
+  const [notification, setNotification] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const formatMoney = (value: number) => {
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
@@ -66,6 +75,97 @@ export function JuvnaPipeline() {
 
   const getTotalValue = (stage: DealStage): number => {
     return deals.filter(d => d.stage === stage).reduce((sum, d) => sum + d.budget, 0);
+  };
+
+  // Drag and Drop handlers
+  const handleDragStart = (deal: MockDeal) => {
+    setDraggedDeal(deal);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (targetStage: DealStage) => {
+    if (draggedDeal && draggedDeal.stage !== targetStage) {
+      setDeals(prev => prev.map(d => 
+        d.id === draggedDeal.id 
+          ? { ...d, stage: targetStage, daysInStage: 0 }
+          : d
+      ));
+      showNotificationMessage(`Moved ${draggedDeal.buyerName} to ${stages.find(s => s.id === targetStage)?.label}`);
+    }
+    setDraggedDeal(null);
+  };
+
+  // Action handlers
+  const handleCall = (phone?: string) => {
+    if (phone) {
+      window.open(`tel:${phone}`, '_self');
+      showNotificationMessage(`Calling ${phone}...`);
+    } else {
+      showNotificationMessage('No phone number available');
+    }
+  };
+
+  const handleEmail = (email: string, name: string) => {
+    const subject = encodeURIComponent(`Follow up - Yuvna Realty`);
+    const body = encodeURIComponent(`Hi ${name},\n\nI wanted to follow up on your Dubai property investment journey.\n\nBest regards,\nYuvna Realty`);
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
+    showNotificationMessage(`Opening email to ${name}`);
+  };
+
+  const handleSchedule = (name: string, email: string) => {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + 1);
+    startDate.setHours(10, 0, 0, 0);
+    const endDate = new Date(startDate);
+    endDate.setHours(11, 0, 0, 0);
+    
+    const formatDate = (d: Date) => d.toISOString().replace(/-|:|\.\d+/g, '');
+    
+    const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Call with ${name} - Yuvna Realty`)}&dates=${formatDate(startDate)}/${formatDate(endDate)}&details=${encodeURIComponent(`Property consultation with ${name}\nEmail: ${email}`)}&sf=true`;
+    
+    window.open(calendarUrl, '_blank');
+    showNotificationMessage(`Opening calendar for ${name}`);
+  };
+
+  const handleTakeAction = (deal: MockDeal) => {
+    // Determine best action based on stage
+    switch (deal.stage) {
+      case 'new':
+        handleCall(deal.buyerPhone);
+        break;
+      case 'qualified':
+      case 'advisory':
+        handleSchedule(deal.buyerName, deal.buyerEmail);
+        break;
+      case 'site-visit':
+      case 'booking':
+        handleEmail(deal.buyerEmail, deal.buyerName);
+        break;
+      default:
+        handleEmail(deal.buyerEmail, deal.buyerName);
+    }
+  };
+
+  const moveDealToNextStage = (deal: MockDeal) => {
+    const currentIndex = stages.findIndex(s => s.id === deal.stage);
+    if (currentIndex < stages.length - 1) {
+      const nextStage = stages[currentIndex + 1].id;
+      setDeals(prev => prev.map(d => 
+        d.id === deal.id 
+          ? { ...d, stage: nextStage, daysInStage: 0 }
+          : d
+      ));
+      showNotificationMessage(`Moved ${deal.buyerName} to ${stages[currentIndex + 1].label}`);
+      setSelectedDeal(null);
+    }
+  };
+
+  const showNotificationMessage = (message: string) => {
+    setNotification(message);
+    setTimeout(() => setNotification(null), 3000);
   };
 
   const navItems = [
@@ -78,6 +178,23 @@ export function JuvnaPipeline() {
 
   return (
     <div className="min-h-screen bg-[#F9F7F5] flex">
+      {/* Notification */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 right-4 z-50"
+          >
+            <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+              <Check className="w-5 h-5" />
+              {notification}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-[#E8E4E0] flex flex-col">
         <div className="p-6 border-b border-[#E8E4E0]">
@@ -127,9 +244,13 @@ export function JuvnaPipeline() {
               </h1>
               <p className="text-[#7a6a5f] text-sm mt-1">
                 {deals.length} active deals · {formatMoney(deals.reduce((sum, d) => sum + d.budget, 0))} total value
+                <span className="ml-2 text-[#E07F26]">• Drag cards to move between stages</span>
               </p>
             </div>
-            <button className="px-4 py-2.5 rounded-lg bg-[#E07F26] text-white font-semibold text-sm flex items-center gap-2 hover:bg-[#c96e1f] transition-all">
+            <button 
+              onClick={() => setShowAddModal(true)}
+              className="px-4 py-2.5 rounded-lg bg-[#E07F26] text-white font-semibold text-sm flex items-center gap-2 hover:bg-[#c96e1f] transition-all"
+            >
               <Plus className="w-5 h-5" /> New Deal
             </button>
           </div>
@@ -142,7 +263,14 @@ export function JuvnaPipeline() {
               const stageValue = getTotalValue(stage.id);
               
               return (
-                <div key={stage.id} className="w-80 flex flex-col bg-white rounded-xl border border-[#E8E4E0]">
+                <div 
+                  key={stage.id} 
+                  className={`w-80 flex flex-col bg-white rounded-xl border border-[#E8E4E0] ${
+                    draggedDeal ? 'border-dashed border-2 border-[#E07F26]/50' : ''
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDrop={() => handleDrop(stage.id)}
+                >
                   <div className="p-4 border-b border-[#E8E4E0]">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -159,16 +287,22 @@ export function JuvnaPipeline() {
                     {stageDeals.map((deal) => (
                       <motion.div
                         key={deal.id}
+                        draggable
+                        onDragStart={() => handleDragStart(deal)}
                         onClick={() => setSelectedDeal(deal)}
-                        className="p-4 rounded-xl bg-[#F9F7F5] border border-[#E8E4E0] cursor-pointer hover:border-[#E07F26]/50 hover:shadow-md transition-all"
+                        className={`p-4 rounded-xl bg-[#F9F7F5] border border-[#E8E4E0] cursor-grab hover:border-[#E07F26]/50 hover:shadow-md transition-all ${
+                          draggedDeal?.id === deal.id ? 'opacity-50' : ''
+                        }`}
                         whileHover={{ scale: 1.02 }}
+                        layout
                       >
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 rounded-full bg-[#E07F26]/10 flex items-center justify-center text-[#E07F26] font-semibold">
+                        <div className="flex items-center gap-2 mb-3">
+                          <GripVertical className="w-4 h-4 text-[#9a8a7f]" />
+                          <div className="w-8 h-8 rounded-full bg-[#E07F26]/10 flex items-center justify-center text-[#E07F26] font-semibold text-sm">
                             {deal.buyerInitial}
                           </div>
-                          <div>
-                            <div className="font-medium text-[#3D2D22] text-sm">{deal.buyerName}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-[#3D2D22] text-sm truncate">{deal.buyerName}</div>
                             <div className="text-xs text-[#7a6a5f]">{deal.country}</div>
                           </div>
                         </div>
@@ -197,11 +331,15 @@ export function JuvnaPipeline() {
                     ))}
 
                     {stageDeals.length === 0 && (
-                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <div className={`flex flex-col items-center justify-center py-8 text-center ${
+                        draggedDeal ? 'bg-[#E07F26]/5 border-2 border-dashed border-[#E07F26]/30 rounded-xl' : ''
+                      }`}>
                         <div className="w-12 h-12 rounded-xl bg-[#F5F3F1] flex items-center justify-center mb-3">
                           <Building2 className="w-6 h-6 text-[#E8E4E0]" />
                         </div>
-                        <p className="text-[#9a8a7f] text-sm">No deals in this stage</p>
+                        <p className="text-[#9a8a7f] text-sm">
+                          {draggedDeal ? 'Drop here' : 'No deals in this stage'}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -226,7 +364,7 @@ export function JuvnaPipeline() {
                   </div>
                   <div>
                     <h2 className="text-xl font-serif font-semibold text-[#3D2D22]">{selectedDeal.buyerName}</h2>
-                    <div className="text-sm text-[#7a6a5f]">{selectedDeal.country}</div>
+                    <div className="text-sm text-[#7a6a5f]">{selectedDeal.buyerEmail}</div>
                   </div>
                 </div>
                 <button onClick={() => setSelectedDeal(null)} className="p-2 hover:bg-[#F5F3F1] rounded-lg"><X className="w-5 h-5 text-[#7a6a5f]" /></button>
@@ -246,12 +384,28 @@ export function JuvnaPipeline() {
                   </div>
                 </div>
 
-                <div className="flex gap-3">
-                  <button className="flex-1 py-3 rounded-lg border border-[#E8E4E0] text-[#3D2D22] font-medium flex items-center justify-center gap-2 hover:border-[#E07F26] transition-all">
-                    <Phone className="w-4 h-4" /> Call
+                {/* Quick Actions */}
+                <div className="grid grid-cols-3 gap-3">
+                  <button 
+                    onClick={() => handleCall(selectedDeal.buyerPhone)}
+                    className="p-4 rounded-xl border border-[#E8E4E0] hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-all text-center"
+                  >
+                    <Phone className="w-5 h-5 text-[#E07F26] mx-auto mb-2" />
+                    <div className="text-sm font-medium text-[#3D2D22]">Call</div>
                   </button>
-                  <button className="flex-1 py-3 rounded-lg border border-[#E8E4E0] text-[#3D2D22] font-medium flex items-center justify-center gap-2 hover:border-[#E07F26] transition-all">
-                    <Calendar className="w-4 h-4" /> Schedule
+                  <button 
+                    onClick={() => handleEmail(selectedDeal.buyerEmail, selectedDeal.buyerName)}
+                    className="p-4 rounded-xl border border-[#E8E4E0] hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-all text-center"
+                  >
+                    <Mail className="w-5 h-5 text-[#E07F26] mx-auto mb-2" />
+                    <div className="text-sm font-medium text-[#3D2D22]">Email</div>
+                  </button>
+                  <button 
+                    onClick={() => handleSchedule(selectedDeal.buyerName, selectedDeal.buyerEmail)}
+                    className="p-4 rounded-xl border border-[#E8E4E0] hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-all text-center"
+                  >
+                    <Calendar className="w-5 h-5 text-[#E07F26] mx-auto mb-2" />
+                    <div className="text-sm font-medium text-[#3D2D22]">Schedule</div>
                   </button>
                 </div>
 
@@ -262,8 +416,25 @@ export function JuvnaPipeline() {
                       <CheckCircle className="w-5 h-5" />
                       <span className="font-semibold">{selectedDeal.suggestedAction}</span>
                     </div>
-                    <button className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors mt-2">Take Action</button>
+                    <button 
+                      onClick={() => handleTakeAction(selectedDeal)}
+                      className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors mt-2"
+                    >
+                      Take Action
+                    </button>
                   </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xs font-semibold text-[#7a6a5f] uppercase tracking-wider mb-3">Move to Next Stage</h3>
+                  <button
+                    onClick={() => moveDealToNextStage(selectedDeal)}
+                    disabled={selectedDeal.stage === 'closed-won'}
+                    className="w-full py-3 rounded-xl border-2 border-[#E07F26] text-[#E07F26] font-semibold flex items-center justify-center gap-2 hover:bg-[#E07F26] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ArrowRight className="w-5 h-5" />
+                    Move to {stages[stages.findIndex(s => s.id === selectedDeal.stage) + 1]?.label || 'Next Stage'}
+                  </button>
                 </div>
 
                 <div>
@@ -289,7 +460,102 @@ export function JuvnaPipeline() {
                     </p>
                   </div>
                 </div>
+
+                {/* Deal Details */}
+                <div>
+                  <h3 className="text-xs font-semibold text-[#7a6a5f] uppercase tracking-wider mb-3">Details</h3>
+                  <div className="space-y-2">
+                    {[
+                      ['Country', selectedDeal.country],
+                      ['Persona', selectedDeal.persona.replace('-', ' ')],
+                      ['Days in Stage', `${selectedDeal.daysInStage} days`],
+                      ['Phone', selectedDeal.buyerPhone || 'Not provided'],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between py-2 border-b border-[#F5F3F1]">
+                        <span className="text-[#7a6a5f] text-sm">{label}</span>
+                        <span className="text-[#3D2D22] font-medium text-sm">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Deal Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/50"
+            onClick={() => setShowAddModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md bg-white rounded-2xl p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-xl font-serif font-bold text-[#3D2D22] mb-6">Add New Deal</h2>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                const newDeal: MockDeal = {
+                  id: `new-${Date.now()}`,
+                  buyerName: formData.get('name') as string,
+                  buyerInitial: (formData.get('name') as string).charAt(0),
+                  buyerEmail: formData.get('email') as string,
+                  buyerPhone: formData.get('phone') as string || undefined,
+                  country: formData.get('country') as string,
+                  budget: Number(formData.get('budget')),
+                  stage: 'new',
+                  daysInStage: 0,
+                  dropOffRisk: 'medium',
+                  persona: 'explorer',
+                  suggestedAction: 'Initial outreach call',
+                };
+                setDeals(prev => [newDeal, ...prev]);
+                setShowAddModal(false);
+                showNotificationMessage(`Added ${newDeal.buyerName} to pipeline`);
+              }}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-[#7a6a5f] mb-1">Full Name *</label>
+                    <input name="name" required className="w-full px-4 py-2.5 rounded-lg bg-[#F9F7F5] border border-[#E8E4E0] text-[#3D2D22]" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-[#7a6a5f] mb-1">Email *</label>
+                    <input name="email" type="email" required className="w-full px-4 py-2.5 rounded-lg bg-[#F9F7F5] border border-[#E8E4E0] text-[#3D2D22]" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-[#7a6a5f] mb-1">Phone</label>
+                    <input name="phone" className="w-full px-4 py-2.5 rounded-lg bg-[#F9F7F5] border border-[#E8E4E0] text-[#3D2D22]" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-[#7a6a5f] mb-1">Country *</label>
+                      <input name="country" required className="w-full px-4 py-2.5 rounded-lg bg-[#F9F7F5] border border-[#E8E4E0] text-[#3D2D22]" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-[#7a6a5f] mb-1">Budget (USD) *</label>
+                      <input name="budget" type="number" required className="w-full px-4 py-2.5 rounded-lg bg-[#F9F7F5] border border-[#E8E4E0] text-[#3D2D22]" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 rounded-lg border border-[#E8E4E0] text-[#3D2D22] font-medium">
+                    Cancel
+                  </button>
+                  <button type="submit" className="flex-1 py-3 rounded-lg bg-[#E07F26] text-white font-semibold">
+                    Add Deal
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}
@@ -297,4 +563,3 @@ export function JuvnaPipeline() {
     </div>
   );
 }
-

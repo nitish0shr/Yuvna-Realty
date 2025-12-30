@@ -75,20 +75,26 @@ A complete real estate advisory platform that guides property buyers through the
 - Threshold-based automation
 - Real-time notifications
 
-### 📱 Buyer Journey
-1. **Landing** → Compelling value proposition
-2. **Onboarding** → Smart questionnaire
-3. **Dashboard** → Personalized home base
-4. **Recommendations** → AI-curated properties
-5. **ROI Simulator** → Calculate returns
-6. **AI Chat** → Get expert guidance
-7. **Agent Handoff** → Seamless transition
+### 📱 Customer Website (Public)
+- **Landing Page** → Compelling value proposition & hero
+- **About Us** → Company story, team, milestones
+- **Services** → Investment advisory, visa services, property management
+- **Properties** → Featured listings with filtering
+- **Contact** → Contact form & location info
 
-### 👔 Agent Portal
+### 👤 Buyer Journey (After "Get Started")
+1. **Onboarding** → Smart questionnaire
+2. **Dashboard** → Personalized home base
+3. **Recommendations** → AI-curated properties
+4. **ROI Simulator** → Calculate returns
+5. **AI Chat** → Get expert guidance
+6. **Agent Handoff** → Seamless transition
+
+### 👔 Agent Portal (Separate Login)
 1. **Inbox** → All conversations
 2. **Pipeline** → Deal stages (Kanban)
 3. **Leads** → Full lead database
-4. **Outreach** → Campaign management
+4. **Outreach Engine** → Campaign management & auto-pilot (AGENT-ONLY)
 5. **Analytics** → Performance metrics
 
 ---
@@ -205,6 +211,10 @@ yuvna-realty/
 │   │   └── dubai/          # Main app components
 │   │       ├── JuvnaApp.tsx           # App router
 │   │       ├── JuvnaLanding.tsx       # Landing page
+│   │       ├── JuvnaAbout.tsx         # About Us page
+│   │       ├── JuvnaServices.tsx      # Services page
+│   │       ├── JuvnaProperties.tsx    # Properties page
+│   │       ├── JuvnaContact.tsx       # Contact page
 │   │       ├── JuvnaOnboarding.tsx    # Buyer questionnaire
 │   │       ├── JuvnaDashboard.tsx     # Buyer dashboard
 │   │       ├── JuvnaRecommendations.tsx # Property recommendations
@@ -213,7 +223,7 @@ yuvna-realty/
 │   │       ├── JuvnaAgentInbox.tsx    # Agent inbox
 │   │       ├── JuvnaPipeline.tsx      # Deal pipeline
 │   │       ├── JuvnaLeads.tsx         # Lead management
-│   │       ├── JuvnaOutreach.tsx      # Outreach engine
+│   │       ├── JuvnaOutreach.tsx      # Outreach engine (Agent-only)
 │   │       ├── YuvnaHeader.tsx        # Navigation header
 │   │       └── YuvnaLogo.tsx          # Brand logo
 │   ├── lib/

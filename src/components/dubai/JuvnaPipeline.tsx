@@ -17,7 +17,9 @@ import {
   Inbox,
   Users,
   BarChart3,
-  LogOut
+  LogOut,
+  Send,
+  Zap
 } from 'lucide-react';
 
 import { YuvnaLogoAgent } from './YuvnaLogo';
@@ -68,6 +70,7 @@ export function JuvnaPipeline() {
 
   const navItems = [
     { id: 'inbox', label: 'Inbox', icon: Inbox, badge: 3 },
+    { id: 'outreach', label: 'Outreach Engine', icon: Send, highlight: true },
     { id: 'pipeline', label: 'Pipeline', icon: Kanban },
     { id: 'leads', label: 'All Leads', icon: Users },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -88,14 +91,20 @@ export function JuvnaPipeline() {
                 onClick={() => {
                   if (item.id === 'inbox') setView('agent-inbox');
                   if (item.id === 'leads') setView('agent-leads');
+                  if (item.id === 'outreach') setView('agent-outreach');
                 }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                  item.id === 'pipeline' ? 'bg-[#E07F26]/10 text-[#E07F26]' : 'text-[#5a4a3f] hover:bg-[#F5F3F1]'
+                  item.id === 'pipeline' 
+                    ? 'bg-[#E07F26]/10 text-[#E07F26]' 
+                    : (item as any).highlight
+                      ? 'bg-[#E07F26] text-white hover:bg-[#c96e1f]'
+                      : 'text-[#5a4a3f] hover:bg-[#F5F3F1]'
                 }`}
               >
                 <item.icon className="w-5 h-5" />
                 {item.label}
                 {item.badge && <span className="ml-auto px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold">{item.badge}</span>}
+                {(item as any).highlight && !item.badge && <Zap className="w-4 h-4 ml-auto" />}
               </button>
             ))}
           </div>

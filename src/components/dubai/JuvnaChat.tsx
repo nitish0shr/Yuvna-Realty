@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRealEstateStore } from '../../store/realEstateStore';
+import { getAdvisorResponse } from '../../lib/ai';
 import type { ChatMessage } from '../../types/realEstate';
 import {
   Send,
@@ -12,78 +13,16 @@ import {
   Calendar,
   AlertCircle,
   Loader2,
-  Clock
+  Clock,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 
 import { YuvnaHeader } from './YuvnaHeader';
 
-
-const detectIntentSignals = (message: string): string[] => {
-  const signals: string[] = [];
-  const lowerMessage = message.toLowerCase();
-  if (lowerMessage.includes('visit') || lowerMessage.includes('coming to dubai')) signals.push('planning_visit');
-  if (lowerMessage.includes('buy') || lowerMessage.includes('purchase')) signals.push('purchase_intent');
-  if (lowerMessage.includes('speak') || lowerMessage.includes('call') || lowerMessage.includes('talk to someone')) signals.push('call_request');
-  if (lowerMessage.includes('available') || lowerMessage.includes('options')) signals.push('property_interest');
-  if (lowerMessage.includes('reserve') || lowerMessage.includes('book')) signals.push('booking_intent');
-  return signals;
-};
-
 const shouldEscalate = (signals: string[]): boolean => {
   const highIntentSignals = ['call_request', 'booking_intent', 'planning_visit'];
   return signals.some(s => highIntentSignals.includes(s));
-};
-
-const generateAIResponse = (message: string, context: any): { content: string; signals: string[]; escalate: boolean } => {
-  const signals = detectIntentSignals(message);
-  const escalate = shouldEscalate(signals);
-  const lowerMessage = message.toLowerCase();
-
-  if (lowerMessage.match(/^(hi|hello|hey)/)) {
-    return {
-      content: `Hello! 👋 Welcome to Yuvna Realty. I'm your dedicated investment advisor.\n\nBased on your profile as a ${context.persona?.replace('-', ' ') || 'buyer'}, I can help you with:\n\n• Property recommendations for your budget\n• ROI projections and market analysis\n• Visa options and buying process\n• Area comparisons\n\nWhat would you like to explore?`,
-      signals,
-      escalate: false,
-    };
-  }
-
-  if (lowerMessage.includes('roi') || lowerMessage.includes('return') || lowerMessage.includes('yield')) {
-    return {
-      content: `Great question! 📊 Here's what you can expect for your budget range:\n\n**Rental Yields:**\n• Growth areas (JVC, Dubai South): 7-8.5%\n• Prime areas (Downtown, Marina): 5-6%\n• Emerging areas: 6.5-8%\n\n**Capital Appreciation (2024):**\n• Prime: 5-8% annually\n• Growth areas: 10-15% annually\n\nWould you like me to create a detailed projection for your specific scenario? You can also use our ROI Calculator for custom analysis.`,
-      signals,
-      escalate: false,
-    };
-  }
-
-  if (lowerMessage.includes('visa') || lowerMessage.includes('golden visa') || lowerMessage.includes('residency')) {
-    return {
-      content: `The UAE offers excellent visa options through property investment! 🏠\n\n**Golden Visa (10-year):**\n• Minimum: AED 2,000,000 (~$545,000)\n• Includes family members\n• No sponsor required\n\n**Property Visa (2-year):**\n• Minimum: AED 750,000 (~$205,000)\n• Renewable, covers family\n• Can work or start a business\n\nBased on your budget, you qualify for both options. Would you like property recommendations that meet visa requirements?`,
-      signals,
-      escalate: false,
-    };
-  }
-
-  if (signals.includes('call_request')) {
-    return {
-      content: `Absolutely! I'd be happy to connect you with one of our expert property consultants. 📞\n\nBased on your profile, you'll be matched with someone specializing in:\n• ${context.budget} properties\n• ${context.goal === 'investment' ? 'Investment acquisitions' : 'Lifestyle purchases'}\n\n**Next Steps:**\n1. A consultant will reach out within 4 hours\n2. They'll have your complete profile\n3. No obligation - just expert guidance\n\nWhat's your preferred contact method - call or WhatsApp?`,
-      signals,
-      escalate: true,
-    };
-  }
-
-  if (signals.includes('planning_visit')) {
-    return {
-      content: `Excellent! Visiting Dubai is the best way to finalize your decision. 🌴\n\n**We can arrange:**\n• Personalized property tours\n• Area orientation drives\n• Developer showroom visits\n• Meeting with our consultants\n\n**Pro Tips:**\n• Weekdays are best for viewings\n• Budget 2-3 full days\n• Bring passport copies\n\nWhen are you planning to visit? I can help coordinate everything.`,
-      signals,
-      escalate: true,
-    };
-  }
-
-  return {
-    content: `That's a great question! As a ${context.persona?.replace('-', ' ') || 'buyer'} with your profile, you have excellent options in Dubai.\n\nI can provide detailed information on:\n• 🏠 Property recommendations\n• 📊 ROI calculations\n• 🌍 Area comparisons\n• 📋 Buying process\n• ✈️ Visa options\n\nWhat would you like to explore?`,
-    signals,
-    escalate, // Use calculated escalate based on signal detection
-  };
 };
 
 const quickActions = [
@@ -99,7 +38,28 @@ export function JuvnaChat() {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showEscalation, setShowEscalation] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [aiError, setAiError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Check AI availability on mount
+  useEffect(() => {
+    const checkAI = async () => {
+      try {
+        const response = await fetch('/api/health');
+        const data = await response.json();
+        const hasProvider = data.providers?.anthropic || data.providers?.openai || data.providers?.gemini;
+        setIsOnline(hasProvider);
+        if (!hasProvider) {
+          setAiError('AI not configured. Please add an API key.');
+        }
+      } catch {
+        // API might not be available in dev mode, try anyway
+        setIsOnline(true);
+      }
+    };
+    checkAI();
+  }, []);
 
   useEffect(() => {
     const welcomeMessage: ChatMessage = {
@@ -130,40 +90,97 @@ export function JuvnaChat() {
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsTyping(true);
+    setAiError(null);
 
-    setTimeout(() => {
-      const context = {
+    try {
+      // Build conversation history for context
+      const conversationHistory = messages.map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      // Call real AI
+      const { content, intentSignals } = await getAdvisorResponse(messageText, {
         persona: currentBuyer?.persona || null,
         budget: currentBuyer?.budgetBand || '500k-1m',
         goal: currentBuyer?.goal || 'investment',
-      };
-      
-      const { content, signals, escalate } = generateAIResponse(messageText, context);
-      
+        conversationHistory,
+      });
+
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         conversationId: 'main',
         role: 'advisor',
         content,
         timestamp: new Date(),
-        intentSignals: signals,
-        escalationTrigger: escalate,
+        intentSignals,
+        escalationTrigger: shouldEscalate(intentSignals),
       };
       
       setMessages(prev => [...prev, aiMessage]);
-      setIsTyping(false);
       
-      if (escalate) setTimeout(() => setShowEscalation(true), 1000);
-    }, 1000 + Math.random() * 1000);
+      if (shouldEscalate(intentSignals)) {
+        setTimeout(() => setShowEscalation(true), 1000);
+      }
+    } catch (error: any) {
+      console.error('Chat error:', error);
+      setAiError(error.message || 'Failed to get response');
+      
+      // Add error message
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        conversationId: 'main',
+        role: 'advisor',
+        content: `I apologize, but I'm having trouble connecting right now. Please try again in a moment.\n\nIn the meantime, feel free to explore our ROI Calculator or Property Recommendations.`,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#F9F7F5] flex flex-col">
       <YuvnaHeader currentPage="chat" />
 
+      {/* AI Status Banner */}
+      {!isOnline && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-2">
+          <div className="max-w-4xl mx-auto flex items-center gap-2 text-amber-800 text-sm">
+            <WifiOff className="w-4 h-4" />
+            <span>AI advisor is offline. Responses may be limited.</span>
+          </div>
+        </div>
+      )}
+
+      {aiError && (
+        <div className="bg-red-50 border-b border-red-200 px-6 py-2">
+          <div className="max-w-4xl mx-auto flex items-center gap-2 text-red-800 text-sm">
+            <AlertCircle className="w-4 h-4" />
+            <span>{aiError}</span>
+          </div>
+        </div>
+      )}
+
       {/* Messages */}
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
+          {/* Online indicator */}
+          <div className="flex items-center justify-center gap-2 text-xs text-[#7a6a5f]">
+            {isOnline ? (
+              <>
+                <Wifi className="w-3 h-3 text-green-500" />
+                <span>AI Advisor Online</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-3 h-3 text-amber-500" />
+                <span>Limited Mode</span>
+              </>
+            )}
+          </div>
+
           {messages.map((message) => (
             <motion.div
               key={message.id}
@@ -202,7 +219,7 @@ export function JuvnaChat() {
               </div>
               <div className="bg-white border border-[#E8E4E0] rounded-2xl p-4 flex items-center gap-2">
                 <Loader2 className="w-4 h-4 text-[#E07F26] animate-spin" />
-                <span className="text-[#7a6a5f] text-sm">Typing...</span>
+                <span className="text-[#7a6a5f] text-sm">Thinking...</span>
               </div>
             </motion.div>
           )}
@@ -219,7 +236,8 @@ export function JuvnaChat() {
                 <button
                   key={action.label}
                   onClick={() => handleSend(action.label)}
-                  className="px-4 py-2 rounded-lg bg-[#F9F7F5] border border-[#E8E4E0] text-[#3D2D22] text-sm hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-all flex items-center gap-2"
+                  disabled={isTyping}
+                  className="px-4 py-2 rounded-lg bg-[#F9F7F5] border border-[#E8E4E0] text-[#3D2D22] text-sm hover:border-[#E07F26] hover:bg-[#E07F26]/5 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   <action.icon className="w-4 h-4 text-[#E07F26]" />
                   {action.label}
@@ -238,16 +256,21 @@ export function JuvnaChat() {
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              onKeyDown={(e) => e.key === 'Enter' && !isTyping && handleSend()}
               placeholder="Ask anything about Dubai real estate..."
               className="flex-1 px-5 py-3 rounded-xl bg-[#F9F7F5] border border-[#E8E4E0] text-[#3D2D22] placeholder:text-[#9a8a7f] focus:outline-none focus:border-[#E07F26]"
+              disabled={isTyping}
             />
             <button
               onClick={() => handleSend()}
               disabled={!inputValue.trim() || isTyping}
               className="px-6 py-3 rounded-xl bg-[#E07F26] text-white font-semibold flex items-center gap-2 hover:bg-[#c96e1f] transition-all disabled:opacity-50"
             >
-              <Send className="w-5 h-5" />
+              {isTyping ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
             </button>
           </div>
         </div>
@@ -303,4 +326,3 @@ export function JuvnaChat() {
     </div>
   );
 }
-

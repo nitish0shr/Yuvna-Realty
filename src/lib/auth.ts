@@ -8,7 +8,22 @@ export interface AuthUser {
   id: string;
   email: string;
   isAgent?: boolean;
+  role?: 'agent' | 'manager' | 'admin';
+  isAdmin?: boolean;
 }
+
+export const buildAuthUser = (user: { id: string; email?: string | null; user_metadata?: Record<string, any> }): AuthUser => {
+  const role = user.user_metadata?.role as AuthUser['role'] | undefined;
+  const isAdmin = role === 'admin' || user.user_metadata?.isAdmin === true;
+
+  return {
+    id: user.id,
+    email: user.email ?? '',
+    isAgent: user.user_metadata?.isAgent || false,
+    role,
+    isAdmin,
+  };
+};
 
 // Sign up with email (magic link)
 export async function signUpWithEmail(email: string): Promise<{ success: boolean; error?: string }> {
@@ -47,11 +62,7 @@ export async function signInWithPassword(
 
     return {
       success: true,
-      user: {
-        id: data.user.id,
-        email: data.user.email!,
-        isAgent: data.user.user_metadata?.isAgent || false,
-      },
+      user: buildAuthUser(data.user),
     };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -69,11 +80,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   
   if (!user) return null;
 
-  return {
-    id: user.id,
-    email: user.email!,
-    isAgent: user.user_metadata?.isAgent || false,
-  };
+  return buildAuthUser(user);
 }
 
 // Get current session
@@ -86,11 +93,7 @@ export async function getSession() {
 export function onAuthStateChange(callback: (user: AuthUser | null) => void) {
   return supabase.auth.onAuthStateChange((_event, session) => {
     if (session?.user) {
-      callback({
-        id: session.user.id,
-        email: session.user.email!,
-        isAgent: session.user.user_metadata?.isAgent || false,
-      });
+      callback(buildAuthUser(session.user));
     } else {
       callback(null);
     }
@@ -196,4 +199,3 @@ export default {
   getOrCreateBuyerProfile,
   updateBuyerAfterOnboarding,
 };
-

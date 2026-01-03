@@ -13,11 +13,29 @@ import { JuvnaAgentInbox } from './JuvnaAgentInbox';
 import { JuvnaPipeline } from './JuvnaPipeline';
 import { JuvnaLeads } from './JuvnaLeads';
 import { JuvnaOutreach } from './JuvnaOutreach';
+import { JuvnaAdminLogin } from './JuvnaAdminLogin';
 import { AnimatePresence, motion } from 'framer-motion';
 import '../../styles/juvna-theme.css';
+import { useAuth } from '../../context/AuthContext';
 
 export function JuvnaApp() {
-  const { currentView } = useRealEstateStore();
+  const { currentView, setView } = useRealEstateStore();
+  const { user, isLoading } = useAuth();
+
+  const requiresAdminAccess = currentView.startsWith('agent-') || currentView.startsWith('admin-');
+  const isAdmin = !!user?.isAdmin;
+
+  if (requiresAdminAccess && !isAdmin) {
+    if (isLoading) {
+      return (
+        <div className="min-h-screen bg-white flex items-center justify-center text-[#7a6a5f]">
+          Checking admin access...
+        </div>
+      );
+    }
+
+    return <JuvnaAdminLogin onBack={() => setView('landing')} />;
+  }
 
   const renderView = () => {
     switch (currentView) {
@@ -74,4 +92,3 @@ export function JuvnaApp() {
     </div>
   );
 }
-

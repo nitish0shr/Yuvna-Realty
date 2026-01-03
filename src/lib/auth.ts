@@ -56,7 +56,7 @@ export const buildAuthUser = (user: {
   return {
     id: user.id,
     email: user.email ?? '',
-    isAgent: user.user_metadata?.isAgent || false,
+    isAgent: user.user_metadata?.isAgent || user.app_metadata?.isAgent || false,
     role,
     isAdmin,
   };

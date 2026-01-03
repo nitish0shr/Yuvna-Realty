@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useRealEstateStore } from '../../store/realEstateStore';
 import { JuvnaLanding } from './JuvnaLanding';
 import { JuvnaAbout } from './JuvnaAbout';
@@ -24,6 +25,13 @@ export function JuvnaApp() {
 
   const requiresAdminAccess = currentView.startsWith('agent-') || currentView.startsWith('admin-');
   const isAdmin = !!user?.isAdmin;
+
+  useEffect(() => {
+    const path = window.location.pathname.toLowerCase();
+    if (path.startsWith('/agent')) {
+      setView('agent-inbox');
+    }
+  }, [setView]);
 
   if (requiresAdminAccess && !isAdmin) {
     if (isLoading) {
